@@ -2,6 +2,10 @@
 
 自制翻译插件
 
+## 技术栈
+
+plasmo + React + tailwindcss + typescript
+
 ## 使用
 
 ### 安装依赖

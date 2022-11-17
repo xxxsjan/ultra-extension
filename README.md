@@ -15,17 +15,27 @@ npm run build
 
 ### 浏览器使用插件
 
+#### 生产环境
+
 浏览器进入扩展程序管理
 
-点击加载已解压，选择上面那个文件夹即可
+点击加载已解压
 
-开发环境的话就npm run dev
+选择文件夹build/chrome-mv3-prod
+
+#### 开发环境
+
+npm run dev
 
 根目录会生成build/chrome-mv3-dev
 
-加载已解压时选择 chrome-mv3-dev 这个文件夹就行，这样可以热更新调试
+加载已解压时选择build/chrome-mv3-dev
+
+这样可以热更新调试
 
 ### 参考文章
+
+[谷歌插件官方文档](https://developer.chrome.com/docs/extensions/reference/)
 
 <https://blog.csdn.net/Jioho_chen/article/details/126672461>
 

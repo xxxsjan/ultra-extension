@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 
+import Loading from "./components/loading"
+
 import "./style.css"
 
 function IndexPopup() {
@@ -8,12 +10,7 @@ function IndexPopup() {
   const [transSelectText, setTransSelectText] = useState("")
   const [translateInputVal, setTranslateInputVal] = useState("")
   const [type, setType] = useState("select")
-  console.log(chrome)
-
-  // 监听插件图标点击事件
-  // chrome.action.onClicked.addListener(() => {
-  //   console.log("onClicked")
-  // })
+  const [loading, setLoading] = useState(true)
   function translateSelectText() {
     chrome.tabs.query({ currentWindow: true, active: true }, (tabs) => {
       chrome.tabs.sendMessage(tabs[0].id, { type: "getSelectText" }, (res) => {
@@ -24,11 +21,11 @@ function IndexPopup() {
         }
         setSelectText(from)
         setTransSelectText(to)
+        setLoading(false)
       })
     })
   }
   useEffect(() => {
-    console.log(chrome)
     setTimeout(() => {
       translateSelectText()
     }, 1000)
@@ -37,7 +34,6 @@ function IndexPopup() {
   async function onInputTranslate() {
     chrome.tabs.query({ currentWindow: true, active: true }, (tabs) => {
       chrome.tabs.sendMessage(tabs[0].id, {}, (_) => {
-        // const res = await youdaoTrans(data)
         // setTranslateInputVal(res)
       })
     })
@@ -48,6 +44,7 @@ function IndexPopup() {
   }
   return (
     <div className="w-80 text-center flex flex-col justify-between bg-red-200 p-3 ">
+      {loading && <Loading text="查询中"></Loading>}
       {type === "select" && (
         <div className="w-full h-full">
           <div className="text-left">
@@ -94,7 +91,6 @@ function IndexPopup() {
           </div>
         </div>
       )}
-
       <a href="https://docs.plasmo.com" target="_blank" className="text-right">
         power by plasmo
       </a>

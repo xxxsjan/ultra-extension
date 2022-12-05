@@ -17,4 +17,4 @@ chrome.runtime.onMessage.addListener((message, sender, popupCb) => {
   }
   return true
 })
-console.log(chrome)
+

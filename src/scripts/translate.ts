@@ -47,3 +47,24 @@ export async function googleTrans(
   const data: GoogleTransRes = await res.json()
   return data.sentences.map((it) => it.trans).join("")
 }
+async function localhostApi(text) {
+  console.log("text: ", text)
+  const res = await fetch(`'http://localhost:12345/translate?text=${text}`)
+  return res
+}
+
+export default async function translate(text, type = "youdao") {
+  console.log("translate type: ", type)
+  switch (type) {
+    case "youdao":
+      return await youdaoTrans(text)
+    case "youdao":
+      return await googleTrans(text)
+    case "local":
+      return await localhostApi(text)
+    default:
+      break
+  }
+}
+
+

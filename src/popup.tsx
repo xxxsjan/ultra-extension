@@ -18,9 +18,10 @@ function IndexPopup() {
         const { to, from } = res
         if (!to) {
           setType("input")
+        } else {
+          setSelectText(from)
+          setTransSelectText(to)
         }
-        setSelectText(from)
-        setTransSelectText(to)
         setLoading(false)
       })
     })

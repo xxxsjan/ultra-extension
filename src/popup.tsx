@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 
+import Header from "./components/header"
 import Loading from "./components/loading"
 
 import "./style.css"
@@ -68,11 +69,7 @@ function IndexPopup() {
   }
   return (
     <>
-      <div className="header">
-        <a href="options.html" target="_blank">
-          设置
-        </a>
-      </div>
+      <Header />
       <div className="w-80 text-center flex flex-col justify-between bg-indigo-400 p-3 ">
         {loading && <Loading text="查询中"></Loading>}
         {mode === "select-text" && (

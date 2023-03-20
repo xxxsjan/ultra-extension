@@ -6,6 +6,8 @@
 
 plasmo + React + tailwindcss + typescript
 
+依赖包需要python3.6+环境
+
 ## 使用
 
 ### 安装依赖

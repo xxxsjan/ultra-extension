@@ -7,5 +7,5 @@ export const config: PlasmoContentScript = {
 window.addEventListener("load", () => {
   console.log("content script loaded")
 
-  document.body.style.background = "pink"
+  document.body.style.background = "background-color: rgba(129, 140, 248, 1);"
 })

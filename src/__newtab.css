@@ -1,0 +1,54 @@
+/**
+ * This injects Tailwind's base styles and any base styles registered by
+ * plugins.
+ */
+@tailwind base;
+/**
+ * This injects Tailwind's component classes and any component classes
+ * registered by plugins.
+ */
+@tailwind components;
+
+@layer components {
+  .btn {
+    @apply rounded-md h-8 px-4 text-base;
+  }
+  .btn-primary {
+    @apply btn bg-slate-700 text-white;
+  }
+
+  .btn-info {
+    @apply btn bg-slate-500 text-white border-2 border-slate-900;
+  }
+}
+
+/**
+ * This injects Tailwind's utility classes and any utility classes registered
+ * by plugins.
+ */
+@tailwind utilities;
+
+/**
+ * Use this directive to control where Tailwind injects the hover, focus,
+ * responsive, dark mode, and other variants of each class.
+ *
+ * If omitted, Tailwind will append these classes to the very end of
+ * your stylesheet by default.
+ */
+@tailwind variants;
+
+.new-tab {
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  color: #333;
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  margin: 0 0 10px;
+  padding: 10px;
+  position: relative;
+  text-decoration: none;
+  width: 100%;
+}

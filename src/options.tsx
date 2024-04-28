@@ -1,19 +1,16 @@
 import { useState } from "react"
 
+import "./styles/tailwind.css"
+
 function IndexOptions() {
   const [data, setData] = useState("")
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        padding: 16
-      }}>
-      <h1>
+    <div className="">
+      <h1 className="text">
         Welcome to your <a href="https://www.plasmo.com">Plasmo</a> Extension!
       </h1>
-      <input onChange={(e) => setData(e.target.value)} value={data} />
+      <button className="btn btn-neutral">233</button>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-import "./style.css"
+import "./__newtab.css"
 
 function IndexNewtab() {
   const [data, setData] = useState("")

@@ -10,7 +10,7 @@ import "./style.css"
 console.log("icon: ", icon)
 
 function IndexPopup() {
-  const [inputVal, setInputVal] = useState("apple")
+  const [inputVal, setInputVal] = useState("")
   const [selectText, setSelectText] = useState("")
   const [transSelectText, setTransSelectText] = useState("")
   const [translateInputVal, setTranslateInputVal] = useState("")
@@ -102,7 +102,7 @@ function IndexPopup() {
       {
         action: "translate",
         payload: {
-          text: "apple"
+          text: inputVal
         }
       },
       (res) => {
@@ -197,9 +197,12 @@ function IndexPopup() {
           <button id="dyBtn" className="btn btn-neutral">
             获取抖音消息
           </button>
-          <button id="btn1s" className="btn" onClick={to1s}>
-            跳转1s
-          </button>
+
+          <div className="tooltip" data-tip="跳转编辑器查看">
+            <button className="btn" onClick={to1s}>
+              跳转1s
+            </button>
+          </div>
         </div>
 
         {/* <button id="toBg" className="btn">toBg</button>   */}

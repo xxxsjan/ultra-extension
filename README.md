@@ -1,43 +1,24 @@
-# translate-ultra
-
-自制翻译插件
+# 浏览器插件
 
 ## 技术栈
 
-plasmo + React + tailwindcss + typescript
+plasmo + React + typescript+ tailwindcss + daisyui
 
-依赖包需要python3.6+环境
+## 环境
+
+python3.6+
 
 ## 使用
 
-### 安装依赖
+- 安装依赖 pnpm i
 
-pnpm i
+- 打包项目 npm run build
 
-### 打包项目
+- 浏览器进入扩展程序管理，点击加载已解压，开发选 build/chrome-mv3-dev，生产选择文件夹 build/chrome-mv3-prod
 
-npm run build
-根目录会生成build/chrome-mv3-prod
+## 截图
 
-### 浏览器使用插件
-
-#### 生产环境
-
-浏览器进入扩展程序管理
-
-点击加载已解压
-
-选择文件夹build/chrome-mv3-prod
-
-#### 开发环境
-
-npm run dev
-
-根目录会生成build/chrome-mv3-dev
-
-加载已解压时选择build/chrome-mv3-dev
-
-这样可以热更新调试
+![](/doc/pic.png)
 
 ### 参考文章
 

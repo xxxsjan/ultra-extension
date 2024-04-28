@@ -5,7 +5,6 @@ export const config: PlasmoContentScript = {
 }
 
 window.addEventListener("load", () => {
-  console.log("content script loaded")
-
+  console.log("plasmo网站 的 content script 已加载")
   document.body.style.background = "background-color: rgba(129, 140, 248, 1);"
 })

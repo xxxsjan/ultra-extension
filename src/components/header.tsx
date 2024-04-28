@@ -3,11 +3,9 @@ import { useEffect, useState } from "react"
 // import "./loading.css"
 
 function Header(props) {
-  //   console.log("props: ", props)
-
   return (
     <div className="header">
-      <a href="options.html" target="_blank">
+      <a href="options.html" target="_blank" className="btn">
         设置
       </a>
     </div>

@@ -1,3 +1,5 @@
+import baiduTrans from "./baidu"
+
 interface YoudaoTransRes {
   type: string
   errorCode: number
@@ -53,8 +55,10 @@ async function localhostApi(text) {
   return res
 }
 
-export default async function translate(text, type = "youdao") {
-  console.log("translate type: ", type)
+export default async function translate(text, type = "") {
+  console.log("text, type: ", text, type)
+
+  return baiduTrans(text)
   switch (type) {
     case "youdao":
       return await youdaoTrans(text)
@@ -66,5 +70,3 @@ export default async function translate(text, type = "youdao") {
       break
   }
 }
-
-

@@ -22,11 +22,11 @@ function translate(text) {
         console.warn("未设置key")
         return
       }
-      // const appid = result.APP_ID
-      // const key = result.API_KEY
+      const appid = result.APP_ID
+      const key = result.API_KEY
 
-      const appid = "201506300000001"
-      const key = "12345678"
+      // const appid = "201506300000001"
+      // const key = "12345678"
 
       // 设置请求参数
       const params: BaiduParams = {
@@ -38,8 +38,9 @@ function translate(text) {
         sign: ""
       }
 
-      // 生成签名
+      // 生成签名 q=apple&from=en&to=zh&appid=2015063000000001&salt=1435660288&sign=f89f9594663708c1605f3d736d01d2d4
       params.sign = baiduTranslateSign(params.appid, params.q, params.salt, key)
+      console.log(params);
       baiduApi(params).then(resolve, reject)
     })
   })

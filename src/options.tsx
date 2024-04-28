@@ -54,6 +54,13 @@ function IndexOptions() {
           className="input input-bordered w-full max-w-xs"
         />
       </div>
+      <div className="mb-4">
+        <a
+          className="link link-primary text-sm"
+          href=" https://fanyi-api.baidu.com/choose">
+          百度翻译服务申请
+        </a>
+      </div>
       <div className="flex  justify-between w-full">
         <button className="btn btn-neutral" onClick={handleSave}>
           保存

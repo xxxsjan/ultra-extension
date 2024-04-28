@@ -41,7 +41,8 @@
     "permissions": [
       "notifications",
       "tabs",
-      "cookies"
+      "cookies",
+      "storage"
     ]
   }
 }

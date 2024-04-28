@@ -3,10 +3,11 @@ import { useEffect, useState } from "react"
 import Footer from "~components/footer"
 import Header from "~components/header"
 import Loading from "~components/loading"
-
-import icon from "../../assets/icon.development.png"
+import showNotification from "~scripts/showNotification"
 
 import "./popup.css"
+
+import { chown } from "fs"
 
 function IndexPopup() {
   const [inputVal, setInputVal] = useState("")
@@ -15,11 +16,9 @@ function IndexPopup() {
 
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {}, [])
-
-  function handleCopy(text) {
-    text && navigator.clipboard.writeText(text)
-  }
+  useEffect(() => {
+  
+  }, [])
 
   function to1s() {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -33,17 +32,10 @@ function IndexPopup() {
       console.log("host: ", host)
 
       if (host !== "github.com") {
-        chrome.notifications.create(
-          {
-            type: "basic",
-            title: "提示",
-            message: "当前不在github站点",
-            iconUrl: icon
-          },
-          (notificationId) => {
-            console.log("notificationId-->", notificationId)
-          }
-        )
+        showNotification({
+          title: "提示",
+          message: "当前不在github站点"
+        })
         return
       }
       const newUrl = `${protocol}//${host.replace(
@@ -58,7 +50,16 @@ function IndexPopup() {
     })
   }
   function translate() {
+    if (!inputVal) {
+      showNotification({
+        title: "提示",
+        message: "请输入内容"
+      })
+      return
+    }
+
     setLoading(true)
+
     chrome.runtime.sendMessage(
       {
         action: "translate",
@@ -68,28 +69,40 @@ function IndexPopup() {
       },
       (res) => {
         console.log(res)
-        setTransSelectText(res.trans_result[0].dst)
+        if (res.error_code) {
+          showNotification({
+            title: "百度翻译接口出错",
+            message: res.error_msg
+          })
+        } else {
+          setTransSelectText(res.trans_result.map((m) => m.dst).join("\n"))
+        }
         setLoading(false)
       }
     )
   }
-  async function sendByTab() {
+  async function connectTab() {
     const [tab] = await chrome.tabs.query({
       active: true,
       currentWindow: true
     })
-    console.log("tab", tab)
-    if (tab) {
-      chrome.tabs.sendMessage(tab.id, {
-        action: "fromPopup2Content"
-      })
-    }
+    const connect = chrome.tabs.connect(tab.id, {
+      name: "test-connect-send"
+    })
+    connect.postMessage("popup: connect-msg")
+    connect.onMessage.addListener((mess) => {
+      console.log(mess)
+    })
   }
   return (
     <>
-      {/* <Header /> */}
+      {/* <Header /> */}{" "}
+      <div className="flex justify-end m-4">
+        <a href="options.html" target="_blank" className="link link-info">
+          设置
+        </a>
+      </div>
       {loading && <Loading text="查询中"></Loading>}
-
       <div className="popup-body">
         <div className="flex gap-2 mb-4">
           <textarea
@@ -103,8 +116,9 @@ function IndexPopup() {
         </div>
 
         <div role="alert" className="alert mb-4">
-          <span className="translate-result">{transSelectText} </span>
+          <pre className="text-left"> {transSelectText} </pre>
         </div>
+
         <div className="flex justify-between">
           <button className="btn btn-neutral">获取抖音消息</button>
 

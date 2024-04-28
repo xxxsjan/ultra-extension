@@ -1,5 +1,13 @@
 # 浏览器插件
 
+## 功能
+
+- ✅ 翻译（输入翻译）
+
+- ✅ 跳转 github1s
+
+- 🔨 获取抖音聊天消息（未完成）
+
 ## 技术栈
 
 plasmo + React + typescript+ tailwindcss + daisyui
@@ -15,6 +23,10 @@ python3.6+
 - 打包项目 npm run build
 
 - 浏览器进入扩展程序管理，点击加载已解压，开发选 build/chrome-mv3-dev，生产选择文件夹 build/chrome-mv3-prod
+
+- 浏览器右上角里面找到插件，固定显示即可
+
+- 打开设置，配置好 api key
 
 ## 截图
 

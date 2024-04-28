@@ -1,13 +1,18 @@
 import translate from "./scripts/translate"
 
 export {}
-// 插件环境
-console.log("%cHELLO WORLD FROM BGSCRIPTS", "background-color:pink")
+
 console.log("❤️ ❤️ background.js")
 
-chrome.runtime.onMessage.addListener((message, sender, cb) => {
-  if ((message.action = "translate")) {
-    translate(message.payload.text).then(cb)
+chrome.runtime.onMessage.addListener((request, sender, cb) => {
+  console.log("request.action: ", request.action)
+
+  if (request.action === "translate") {
+    translate(request.payload.text).then(cb)
+  }
+
+  if (request.action === "getLocalStorage") {
+  
   }
   return true
 })

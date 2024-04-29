@@ -1,5 +1,5 @@
 export {}
-console.log("❤️ common content.js")
+console.log("❤️ content.js")
 // 浏览器环境
 chrome.runtime.onMessage.addListener((payload, sender, popupCb) => {
   console.log("popup-->content", payload)

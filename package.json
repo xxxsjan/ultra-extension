@@ -2,7 +2,7 @@
   "name": "ultra-extension",
   "displayName": "工具集",
   "version": "0.0.1",
-  "description": "浏览器插件.",
+  "description": "功能包含：翻译、网站自动跳转、github1s跳转",
   "author": "xxxsjan",
   "scripts": {
     "dev": "plasmo dev",

@@ -6,7 +6,7 @@
 - ✅ 翻译（输入翻译）
 - ✅ 跳转 github1s
 
-- 🔨 获取抖音聊天消息（未完成）
+- 🔨 获取抖音聊天消息（ing）
 
 ## 技术栈
 
@@ -14,7 +14,7 @@ plasmo + React + typescript+ tailwindcss + daisyui
 
 ## 环境
 
-python3.6+
+node
 
 ## 使用
 
@@ -35,7 +35,3 @@ python3.6+
 ### 参考文章
 
 [谷歌插件官方文档](https://developer.chrome.com/docs/extensions/reference/)
-
-<https://blog.csdn.net/Jioho_chen/article/details/126672461>
-
-<https://blog.csdn.net/ByteDanceTech/article/details/126113100>

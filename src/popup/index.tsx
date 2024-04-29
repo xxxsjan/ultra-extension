@@ -16,20 +16,17 @@ function IndexPopup() {
 
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-  
-  }, [])
+  useEffect(() => {}, [])
 
   function to1s() {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       const currentTab = tabs[0]
-      console.log("currentTab: ", currentTab)
+
       const tabId = currentTab.id
 
       var currentUrl = new URL(currentTab.url)
 
-      const { protocol, pathname, host } = currentUrl
-      console.log("host: ", host)
+      const { host } = currentUrl
 
       if (host !== "github.com") {
         showNotification({
@@ -38,14 +35,9 @@ function IndexPopup() {
         })
         return
       }
-      const newUrl = `${protocol}//${host.replace(
-        "github",
-        "github1s"
-      )}${pathname}`
 
       chrome.tabs.sendMessage(tabId, {
-        action: "redirect",
-        url: newUrl
+        action: "redirect"
       })
     })
   }

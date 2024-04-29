@@ -8,7 +8,6 @@ console.log("💨copy content")
 document.addEventListener("copy", (e) => {
   // 掘金只对长文本做了追加处理
   const copiedText = e.clipboardData.getData("text/plain")
-  console.log("copiedText: ", copiedText)
 
   const reg = getReg(copiedText)
 
@@ -26,7 +25,7 @@ function getSelectionText() {
 
   const html = selectedRange.cloneContents()
   const text = selectedRange?.toString()
-  console.log("text: ", html, text)
+
   //   clipboardData.setData(  "text/plain",   text+'233'  )
   //   clipboardData.setData(  "text/html",  "<div>".concat(html, "</div>") )
 }

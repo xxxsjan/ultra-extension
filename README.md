@@ -10,7 +10,15 @@
 
 ## 技术栈
 
-plasmo + React + typescript+ tailwindcss + daisyui
+plasmo
+
+React
+
+typescript
+
+tailwindcss
+
+daisyui
 
 ## 环境
 

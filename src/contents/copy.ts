@@ -5,19 +5,25 @@ export const config: PlasmoCSConfig = {
 }
 console.log("💨copy content")
 
-document.addEventListener("copy", (e) => {
-  // 掘金只对长文本做了追加处理
-  const copiedText = e.clipboardData.getData("text/plain")
+// document.addEventListener("copy", (e) => {
+//   // 掘金只对长文本做了追加处理
+//   const copiedText = e.clipboardData.getData("text/plain")
+//   const reg = getReg(copiedText)
+//   if (reg && reg?.test(copiedText)) {
+//     const res = copiedText.replace(reg, "")
+//     e.clipboardData.setData("text/plain", res)
+//     console.log("✅插件生效，复制内容已保护")
+//     e.preventDefault()
+//   }
+// })
 
-  const reg = getReg(copiedText)
-
-  if (reg && reg?.test(copiedText)) {
-    const res = copiedText.replace(reg, "")
-    e.clipboardData.setData("text/plain", res)
-    console.log("✅插件生效，复制内容已保护")
-    e.preventDefault()
-  }
-})
+document.addEventListener(
+  "copy",
+  (e) => {
+    e.stopPropagation()
+  },
+  true
+)
 
 function getSelectionText() {
   const selection = window.getSelection()

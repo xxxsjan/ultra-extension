@@ -108,7 +108,7 @@ function IndexPopup() {
         </div>
 
         <div role="alert" className="alert mb-4">
-          <pre className="text-left"> {transSelectText} </pre>
+            {transSelectText}  
         </div>
 
         <div className="flex justify-between">

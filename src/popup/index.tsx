@@ -111,8 +111,8 @@ function IndexPopup() {
             {transSelectText}  
         </div>
 
-        <div className="flex justify-between">
-          <button className="btn btn-neutral">获取抖音消息</button>
+        <div className="flex justify-end">
+          {/* <button className="btn btn-neutral">获取抖音消息</button> */}
 
           <div className="tooltip" data-tip="跳转编辑器查看">
             <button className="btn" onClick={to1s}>

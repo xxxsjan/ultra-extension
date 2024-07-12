@@ -13,11 +13,19 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 
 window.addEventListener("load", () => {
   setTimeout(() => {
+
+    const btn = document.getElementById(':R55ab:')
+  
+    const classList = btn.classList.value
+ 
     const lastEl = document.querySelector(".Box-sc-g0xbh4-0.bNDvfp")
+
     const button = document.createElement("button")
-    button.className = "types__StyledButton-sc-ws60qy-0 gYvpXq"
-    button.innerHTML = "编辑器查看（github1s）"
+    button.className = classList
+    button.innerHTML = "github1s打开"
+
     lastEl.parentNode.insertBefore(button, lastEl)
+
     button.onclick = to1s
   }, 1000)
 })

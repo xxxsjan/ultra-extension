@@ -99,7 +99,7 @@ function IndexPopup() {
         <div className="flex gap-2 mb-4">
           <textarea
             className="inputArea textarea textarea-accent w-full "
-            placeholder=""
+            placeholder="请输入英文"
             onChange={(e) => setInputVal(e.target.value)}
             value={inputVal}></textarea>
           <button className="btn" onClick={translate}>
@@ -107,9 +107,14 @@ function IndexPopup() {
           </button>
         </div>
 
-        <div role="alert" className="alert mb-4">
+        <textarea
+          className="textarea textarea-bordered w-full"
+          placeholder="翻译结果"
+          value={transSelectText}></textarea>
+
+        {/* <div role="alert" className="alert mb-4">
             {transSelectText}  
-        </div>
+        </div> */}
 
         <div className="flex justify-end">
           {/* <button className="btn btn-neutral">获取抖音消息</button> */}

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <!-- https://daisyui.com/components/button/ -->
+
+    <link rel="stylesheet" href="./css/tailwind-o.css">
+    <link rel="stylesheet" href="./css/index.css">
+
+</head>
+
+<body>
+    <div class="popup-body">
+        <div class="flex gap-2 mb-4">
+            <textarea class="inputArea textarea textarea-accent w-full " placeholder=""></textarea>
+            <button class="btn fanyiBtn">翻译</button>
+        </div>
+
+        <div role="alert" class="alert mb-4">
+
+            <span class="translate-result"> </span>
+        </div>
+        <div class="flex justify-between">
+            <button id="dyBtn" class="btn btn-neutral">获取抖音消息</button>
+            <button id="btn1s" class="btn ">跳转1s</button>
+        </div>
+
+        <!-- <button id="toBg" class="btn">toBg</button> -->
+    </div>
+    <div class="popup-footer">
+        <span>© 2024 xxxsjan</span>
+        <a target="_blank" href="https://developer.chrome.com/docs/extensions/develop?hl=zh-cn">by google extensions</a>
+    </div>
+</body>
+
+
+<script src="./index.js"></script>
+
+</html>

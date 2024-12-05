@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "工具集",
+  "version": "0.0.1",
+  "description": "工具集",
+  "icons": {
+    "16": "icons/icon_16.png",
+    "32": "icons/icon_32.png",
+    "48": "icons/icon_48.png",
+    "128": "icons/icon_128.png"
+  },
+  "action": {
+    "default_icon": "icons/icon.png",
+    "default_title": "工具集",
+    "default_popup": "popup/index.html"
+  },
+  "background": {
+    "service_worker": "background/service_worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.douyin.com/user/self*"],
+      "css": ["content/index.css"],
+      "js": ["lib/jquery.js", "content/index.js"]
+    },
+    {
+      "matches": ["https://github.com/*"],
+      "css": [],
+      "js": ["lib/jquery.js", "content/github.js"]
+    }
+  ],
+  "permissions": ["notifications", "tabs", "cookies"],
+  "host_permissions": ["https://*.douyin.com/*"]
+}

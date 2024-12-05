@@ -1,0 +1,23 @@
+* {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  text-decoration: none;
+}
+.popup-body {
+  margin: 15px 30px 15px 30px;
+}
+
+.popup-footer {
+  background-color: #f0f0f0;
+  color: #636363;
+  font-family: "Roboto", sans-serif;
+  font-size: 11px;
+  margin-top: 9px;
+  padding: 10px;
+  text-align: center;
+  width: 400px;
+}
+.popup-footer a {
+  color: #4285f4;
+}

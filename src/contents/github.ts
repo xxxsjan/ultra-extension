@@ -4,33 +4,130 @@ export const config: PlasmoCSConfig = {
   matches: ["https://github.com/*"]
 }
 
-// 在内容页面中接收来自popup页面的消息
-chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
-  if (message.action === "redirect") {
+const BTN_ID = "ultra-github1s-btn"
+
+function isRepoPage() {
+  const parts = location.pathname.split("/").filter(Boolean)
+  if (parts.length < 2) return false
+  const reserved = new Set([
+    "settings",
+    "notifications",
+    "marketplace",
+    "explore",
+    "topics",
+    "trending",
+    "collections",
+    "events",
+    "sponsors",
+    "login",
+    "signup",
+    "orgs",
+    "organizations",
+    "users",
+    "search",
+    "pulls",
+    "issues",
+    "codespaces",
+    "account",
+    "new"
+  ])
+  return !reserved.has(parts[0].toLowerCase())
+}
+
+function to1s() {
+  const url = new URL(location.href)
+  url.hostname = url.hostname.replace("github.com", "github1s.com")
+  location.href = url.toString()
+}
+
+function findToolbar(): Element | null {
+  return (
+    document.querySelector("ul.pagehead-actions") ||
+    document.querySelector(".pagehead-actions") ||
+    document.querySelector("#repository-details-container .d-flex") ||
+    document.querySelector("main .AppHeader-context") ||
+    null
+  )
+}
+
+function ensureButton() {
+  if (!isRepoPage()) {
+    document.getElementById(BTN_ID)?.remove()
+    return
+  }
+  if (document.getElementById(BTN_ID)) return
+
+  const btn = document.createElement("button")
+  btn.id = BTN_ID
+  btn.type = "button"
+  btn.textContent = "跳转 1s"
+  btn.title = "用 github1s 打开当前仓库"
+  Object.assign(btn.style, {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: "8px",
+    padding: "5px 12px",
+    fontSize: "12px",
+    fontWeight: "600",
+    lineHeight: "20px",
+    color: "#24292f",
+    background: "#f6f8fa",
+    border: "1px solid rgba(31,35,40,0.15)",
+    borderRadius: "6px",
+    cursor: "pointer",
+    verticalAlign: "middle"
+  })
+  btn.addEventListener("click", (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    to1s()
+  })
+
+  const toolbar = findToolbar()
+  if (toolbar) {
+    if (toolbar.tagName === "UL") {
+      const li = document.createElement("li")
+      li.appendChild(btn)
+      toolbar.prepend(li)
+    } else {
+      toolbar.prepend(btn)
+    }
+    return
+  }
+
+  Object.assign(btn.style, {
+    position: "fixed",
+    top: "72px",
+    right: "16px",
+    zIndex: "9999",
+    marginLeft: "0",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.12)"
+  })
+  document.documentElement.appendChild(btn)
+}
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.action === "redirect") {
     to1s()
   }
 })
 
-window.addEventListener("load", () => {
-  setTimeout(() => {
+function boot() {
+  ensureButton()
+  let lastHref = location.href
+  setInterval(() => {
+    if (location.href !== lastHref) {
+      lastHref = location.href
+      ensureButton()
+    } else if (isRepoPage() && !document.getElementById(BTN_ID)) {
+      ensureButton()
+    }
+  }, 1200)
+}
 
-    const btn = document.getElementById(':R55ab:')
-  
-    const classList = btn.classList.value
- 
-    const lastEl = document.querySelector(".Box-sc-g0xbh4-0.bNDvfp")
-
-    const button = document.createElement("button")
-    button.className = classList
-    button.innerHTML = "github1s打开"
-
-    lastEl.parentNode.insertBefore(button, lastEl)
-
-    button.onclick = to1s
-  }, 1000)
-})
-
-function to1s() {
-  const url = location.href.replace("github", "github1s")
-  window.location.href = url
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => setTimeout(boot, 500))
+} else {
+  setTimeout(boot, 500)
 }

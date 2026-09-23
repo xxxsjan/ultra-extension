@@ -11,27 +11,6 @@ function IndexPopup() {
   const [transSelectText, setTransSelectText] = useState("")
   const [loading, setLoading] = useState(false)
 
-  function to1s() {
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      const currentTab = tabs[0]
-      const tabId = currentTab.id
-      const currentUrl = new URL(currentTab.url)
-      const { host } = currentUrl
-
-      if (host !== "github.com") {
-        showNotification({
-          title: "提示",
-          message: "当前不在github站点"
-        })
-        return
-      }
-
-      chrome.tabs.sendMessage(tabId, {
-        action: "redirect"
-      })
-    })
-  }
-
   async function translate() {
     if (!inputVal.trim()) {
       showNotification({
@@ -114,12 +93,6 @@ function IndexPopup() {
         <div className="popup-actions">
           <button className="popup-btn popup-btn-primary" onClick={translate} disabled={loading}>
             翻译
-          </button>
-          <button
-            className="popup-btn popup-btn-secondary"
-            onClick={to1s}
-            title="在 GitHub 页面跳转到 github1s">
-            跳转 1s
           </button>
         </div>
 

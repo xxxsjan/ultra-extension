@@ -1,8 +1,6 @@
-import { useEffect, useState } from "react"
+import { useState, type KeyboardEvent } from "react"
 
 import Footer from "~components/footer"
-import Header from "~components/header"
-import Loading from "~components/loading"
 import baiduTranslate from "~scripts/baidu"
 import showNotification from "~scripts/showNotification"
 
@@ -10,21 +8,14 @@ import "./popup.css"
 
 function IndexPopup() {
   const [inputVal, setInputVal] = useState("")
-
   const [transSelectText, setTransSelectText] = useState("")
-
   const [loading, setLoading] = useState(false)
-
-  useEffect(() => {}, [])
 
   function to1s() {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       const currentTab = tabs[0]
-
       const tabId = currentTab.id
-
-      var currentUrl = new URL(currentTab.url)
-
+      const currentUrl = new URL(currentTab.url)
       const { host } = currentUrl
 
       if (host !== "github.com") {
@@ -40,8 +31,9 @@ function IndexPopup() {
       })
     })
   }
+
   async function translate() {
-    if (!inputVal) {
+    if (!inputVal.trim()) {
       showNotification({
         title: "提示",
         message: "请输入内容"
@@ -79,65 +71,72 @@ function IndexPopup() {
       setLoading(false)
     }
   }
-  async function connectTab() {
-    const [tab] = await chrome.tabs.query({
-      active: true,
-      currentWindow: true
-    })
-    const connect = chrome.tabs.connect(tab.id, {
-      name: "test-connect-send"
-    })
-    connect.postMessage("popup: connect-msg")
-    connect.onMessage.addListener((mess) => {
-      console.log(mess)
-    })
+
+  function onInputKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault()
+      translate()
+    }
   }
+
   return (
-    <>
-      {/* <Header /> */}{" "}
-      <div className="flex justify-end m-4">
-        <a href="options.html" target="_blank" className="link link-info">
+    <div className="popup-page">
+      {loading && (
+        <div className="popup-loading" aria-live="polite">
+          <div className="popup-spinner" />
+          <span>翻译中…</span>
+        </div>
+      )}
+
+      <header className="popup-top">
+        <div>
+          <p className="popup-brand">工具集</p>
+          <h1 className="popup-title">快速翻译</h1>
+        </div>
+        <a href="options.html" target="_blank" className="popup-settings" rel="noreferrer">
           设置
         </a>
-      </div>
-      {loading && <Loading text="查询中"></Loading>}
+      </header>
+
       <div className="popup-body">
-        <div className="flex gap-2 mb-4">
+        <label className="popup-field">
+          <span className="popup-label">英文原文</span>
           <textarea
-            className="inputArea textarea textarea-accent w-full "
-            placeholder="请输入英文"
+            className="popup-textarea"
+            placeholder="输入要翻译的英文，Ctrl + Enter 提交"
             onChange={(e) => setInputVal(e.target.value)}
-            value={inputVal}></textarea>
-          <button className="btn" onClick={translate}>
+            onKeyDown={onInputKeyDown}
+            value={inputVal}
+            rows={3}
+          />
+        </label>
+
+        <div className="popup-actions">
+          <button className="popup-btn popup-btn-primary" onClick={translate} disabled={loading}>
             翻译
+          </button>
+          <button
+            className="popup-btn popup-btn-secondary"
+            onClick={to1s}
+            title="在 GitHub 页面跳转到 github1s">
+            跳转 1s
           </button>
         </div>
 
-        <textarea
-          className="textarea textarea-bordered w-full"
-          placeholder="翻译结果"
-          rows={4}
-          readOnly
-          value={transSelectText}></textarea>
-
-        {/* <div role="alert" className="alert mb-4">
-            {transSelectText}  
-        </div> */}
-
-        <div className="flex justify-end">
-          {/* <button className="btn btn-neutral">获取抖音消息</button> */}
-
-          <div className="tooltip" data-tip="跳转编辑器查看">
-            <button className="btn" onClick={to1s}>
-              跳转1s
-            </button>
-          </div>
-        </div>
-
-        {/* <button id="toBg" className="btn">toBg</button>   */}
+        <label className="popup-field">
+          <span className="popup-label">中文结果</span>
+          <textarea
+            className="popup-textarea popup-textarea-result"
+            placeholder="翻译结果会显示在这里"
+            rows={4}
+            readOnly
+            value={transSelectText}
+          />
+        </label>
       </div>
+
       <Footer />
-    </>
+    </div>
   )
 }
 

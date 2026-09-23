@@ -1,45 +1,68 @@
-# 浏览器插件
+# 工具集（ultra-extension）
+
+基于 [Plasmo](https://docs.plasmo.com) 的 Chrome 扩展，集成日常开发常用小工具。
 
 ## 功能
 
-- ✅ 外站自动跳转
-- ✅ 翻译（输入翻译）
-- ✅ 跳转 github1s
+| 功能 | 说明 | 状态 |
+| --- | --- | --- |
+| 百度翻译 | 弹窗输入英文，调用百度通用翻译 API | ✅ |
+| GitHub → github1s | 在 GitHub 仓库页一键跳转在线编辑器 | ✅ |
+| 外站自动跳转 | 访问指定外站时自动跳转 | ✅ |
+| 抖音消息 | 获取抖音聊天消息 | 🔨 开发中 |
 
-- 🔨 获取抖音聊天消息（ing）
+翻译凭证在扩展「设置」页配置（`APP ID` / 密钥），数据仅保存在本地 `chrome.storage`。
+
+申请地址：[百度翻译开放平台](https://fanyi-api.baidu.com/choose)
 
 ## 技术栈
 
-plasmo
+- Plasmo · React · TypeScript
+- Tailwind CSS · daisyUI
 
-React
+## 环境要求
 
-typescript
+- Node.js 18+（推荐 18 / 20 LTS）
+- pnpm
 
-tailwindcss
+## 开发
 
-daisyui
+```bash
+# 安装依赖
+pnpm i
 
-## 环境
+# 启动开发（热更新）
+pnpm dev
+```
 
-node
+Chrome 加载扩展：
 
-## 使用
+1. 打开 `chrome://extensions/`，开启「开发者模式」
+2. 「加载已解压的扩展程序」→ 选择 `build/chrome-mv3-dev`
+3. 固定插件图标，打开「设置」填写百度翻译 `APP ID` 与密钥
 
-- 安装依赖 pnpm i
+> 若 `pnpm i` 后 `sharp` 安装失败（常见于 GitHub 下载超时），可先配置镜像再重建：
+>
+> ```powershell
+> $env:sharp_binary_host="https://npmmirror.com/mirrors/sharp"
+> $env:sharp_libvips_binary_host="https://npmmirror.com/mirrors/sharp-libvips"
+> pnpm rebuild sharp
+> ```
 
-- 打包项目 npm run build
+## 生产构建
 
-- 浏览器进入扩展程序管理，点击加载已解压，开发选 build/chrome-mv3-dev，生产选择文件夹 build/chrome-mv3-prod
+```bash
+pnpm build
+```
 
-- 浏览器右上角里面找到插件，固定显示即可
-
-- 打开设置，配置好 api key
+加载目录改为：`build/chrome-mv3-prod`
 
 ## 截图
 
-![](/doc/pic.png)
+![](./doc/pic.png)
 
-### 参考文章
+## 参考
 
-[谷歌插件官方文档](https://developer.chrome.com/docs/extensions/reference/)
+- [Chrome 扩展文档](https://developer.chrome.com/docs/extensions/reference/)
+- [Plasmo 文档](https://docs.plasmo.com)
+- [百度翻译 API 文档](https://fanyi-api.baidu.com/doc/21)

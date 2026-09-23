@@ -459,6 +459,56 @@ function styleActionBtn(btn: HTMLButtonElement, bg: string) {
   })
 }
 
+function enablePanelDrag(el: HTMLDivElement, handle: HTMLElement) {
+  handle.style.cursor = "move"
+  handle.style.userSelect = "none"
+  handle.title = "按住拖动面板"
+
+  let dragging = false
+  let startX = 0
+  let startY = 0
+  let originLeft = 0
+  let originTop = 0
+
+  const onMove = (e: MouseEvent) => {
+    if (!dragging) return
+    const dx = e.clientX - startX
+    const dy = e.clientY - startY
+    const maxLeft = Math.max(0, window.innerWidth - el.offsetWidth)
+    const maxTop = Math.max(0, window.innerHeight - el.offsetHeight)
+    const nextLeft = Math.min(maxLeft, Math.max(0, originLeft + dx))
+    const nextTop = Math.min(maxTop, Math.max(0, originTop + dy))
+    el.style.left = `${nextLeft}px`
+    el.style.top = `${nextTop}px`
+    el.style.right = "auto"
+  }
+
+  const onUp = () => {
+    if (!dragging) return
+    dragging = false
+    document.removeEventListener("mousemove", onMove)
+    document.removeEventListener("mouseup", onUp)
+  }
+
+  handle.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    dragging = true
+    const rect = el.getBoundingClientRect()
+    originLeft = rect.left
+    originTop = rect.top
+    startX = e.clientX
+    startY = e.clientY
+    // 拖动时改用 left/top，避免和 right 冲突
+    el.style.left = `${originLeft}px`
+    el.style.top = `${originTop}px`
+    el.style.right = "auto"
+    document.addEventListener("mousemove", onMove)
+    document.addEventListener("mouseup", onUp)
+  })
+}
+
 function ensurePanel() {
   if (!isLivePage()) {
     removePanel()
@@ -518,7 +568,12 @@ function ensurePanel() {
     '[data-act="save-data"]'
   ) as HTMLButtonElement
 
-  Object.assign(title.style, { fontWeight: "700", marginBottom: "6px" })
+  Object.assign(title.style, {
+    fontWeight: "700",
+    marginBottom: "6px",
+    padding: "2px 0 6px",
+    borderBottom: "1px solid rgba(255,255,255,0.12)"
+  })
   Object.assign(status.style, {
     opacity: "0.9",
     marginBottom: "10px",
@@ -554,6 +609,8 @@ function ensurePanel() {
   styleActionBtn(saveDataBtn, "#3d5a80")
   saveDataBtn.title =
     "开：拦截直播视频省流量；关：清掉拦截并刷新，页面恢复原样播放"
+
+  enablePanelDrag(panel, title)
 
   const stopBubble = (e: Event) => e.stopPropagation()
   panel.addEventListener("mousedown", stopBubble)

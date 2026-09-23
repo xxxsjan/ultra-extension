@@ -1,3 +1,8 @@
+const copyrightYearEl = document.getElementById("copyright-year");
+if (copyrightYearEl) {
+  copyrightYearEl.textContent = String(new Date().getFullYear());
+}
+
 const dyBtn = document.getElementById("dyBtn");
 
 const translateResultEl = document.querySelector(".translate-result");

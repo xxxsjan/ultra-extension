@@ -1,0 +1,5 @@
+allowBuilds:
+  '@parcel/watcher': true
+  lmdb: true
+  msgpackr-extract: true
+  sharp: true

@@ -3,11 +3,10 @@ import { useEffect, useState } from "react"
 import Footer from "~components/footer"
 import Header from "~components/header"
 import Loading from "~components/loading"
+import baiduTranslate from "~scripts/baidu"
 import showNotification from "~scripts/showNotification"
 
 import "./popup.css"
-
-import { chown } from "fs"
 
 function IndexPopup() {
   const [inputVal, setInputVal] = useState("")
@@ -41,7 +40,7 @@ function IndexPopup() {
       })
     })
   }
-  function translate() {
+  async function translate() {
     if (!inputVal) {
       showNotification({
         title: "提示",
@@ -51,27 +50,34 @@ function IndexPopup() {
     }
 
     setLoading(true)
-
-    chrome.runtime.sendMessage(
-      {
-        action: "translate",
-        payload: {
-          text: inputVal
-        }
-      },
-      (res) => {
-        console.log(res)
-        if (res.error_code) {
-          showNotification({
-            title: "百度翻译接口出错",
-            message: res.error_msg
-          })
-        } else {
-          setTransSelectText(res.trans_result.map((m) => m.dst).join("\n"))
-        }
-        setLoading(false)
+    try {
+      const res = await baiduTranslate(inputVal)
+      if (res?.error_code) {
+        showNotification({
+          title: "百度翻译接口出错",
+          message: res.error_msg
+        })
+        return
       }
-    )
+      const text = Array.isArray(res?.trans_result)
+        ? res.trans_result.map((m) => m.dst).filter(Boolean).join("\n")
+        : ""
+      if (!text) {
+        showNotification({
+          title: "翻译失败",
+          message: "接口未返回翻译结果"
+        })
+        return
+      }
+      setTransSelectText(text)
+    } catch (err) {
+      showNotification({
+        title: "翻译失败",
+        message: err?.error_msg || err?.message || "翻译失败"
+      })
+    } finally {
+      setLoading(false)
+    }
   }
   async function connectTab() {
     const [tab] = await chrome.tabs.query({
@@ -110,6 +116,8 @@ function IndexPopup() {
         <textarea
           className="textarea textarea-bordered w-full"
           placeholder="翻译结果"
+          rows={4}
+          readOnly
           value={transSelectText}></textarea>
 
         {/* <div role="alert" className="alert mb-4">

@@ -4,17 +4,19 @@ export {}
 
 console.log("❤️ ❤️ background.js")
 
-chrome.runtime.onMessage.addListener((request, sender, cb) => {
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("request.action: ", request.action)
 
   if (request.action === "translate") {
-    translate(request.payload.text).then(cb)
+    translate(request.payload.text)
+      .then((data) => sendResponse(data))
+      .catch((err) =>
+        sendResponse(err || { error_code: "UNKNOWN", error_msg: "翻译失败" })
+      )
+    return true
   }
 
-  if (request.action === "getLocalStorage") {
-  
-  }
-  return true
+  return false
 })
 
 // 获取cookie

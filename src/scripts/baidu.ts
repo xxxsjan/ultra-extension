@@ -1,10 +1,5 @@
 const MD5 = require("crypto-js/md5")
 
-// require("dotenv").config()
-
-// const APP_ID = process.env.APP_ID
-// const API_KEY = process.env.API_KEY
-
 type BaiduParams = {
   q: string
   from: string
@@ -18,29 +13,27 @@ type BaiduParams = {
 function translate(text) {
   return new Promise((resolve, reject) => {
     chrome.storage.local.get(["APP_ID", "API_KEY"], (result) => {
-      if (!result.APP_ID || !result.API_KEY) {
-        console.warn("未设置key")
-        return
-      }
       const appid = result.APP_ID
       const key = result.API_KEY
 
-      // const appid = "201506300000001"
-      // const key = "12345678"
+      if (!appid || !key) {
+        reject({
+          error_code: "MISSING_KEY",
+          error_msg: "未设置百度翻译 APP_ID / API_KEY，请到设置页填写"
+        })
+        return
+      }
 
-      // 设置请求参数
       const params: BaiduParams = {
         q: text,
         from: "en",
         to: "zh",
         appid,
-        salt: "1435660288",
+        salt: String(Date.now()),
         sign: ""
       }
 
-      // 生成签名 q=apple&from=en&to=zh&appid=2015063000000001&salt=1435660288&sign=f89f9594663708c1605f3d736d01d2d4
       params.sign = baiduTranslateSign(params.appid, params.q, params.salt, key)
-      console.log(params);
       baiduApi(params).then(resolve, reject)
     })
   })
@@ -58,6 +51,10 @@ function baiduApi(params) {
     .then((response) => response.json())
     .catch((error) => {
       console.error("Error:", error)
+      return Promise.reject({
+        error_code: "NETWORK_ERROR",
+        error_msg: error?.message || "网络请求失败"
+      })
     })
 }
 

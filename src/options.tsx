@@ -2,73 +2,129 @@ import { useEffect, useState } from "react"
 
 import showNotification from "~scripts/showNotification"
 
-import "./styles/tailwind.css"
+import "./options.css"
 
 function IndexOptions() {
   const [appid, setAppid] = useState("")
   const [key, setKey] = useState("")
+  const [showKey, setShowKey] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   function handleSave() {
-    appid && chrome.storage.local.set({ APP_ID: appid })
-    key && chrome.storage.local.set({ API_KEY: key })
+    if (!appid.trim() || !key.trim()) {
+      showNotification({
+        title: "提示",
+        message: "请填写完整的 APP ID 和密钥"
+      })
+      return
+    }
+    setSaving(true)
+    chrome.storage.local.set({ APP_ID: appid.trim(), API_KEY: key.trim() }, () => {
+      setSaving(false)
+      showNotification({
+        title: "已保存",
+        message: "百度翻译配置已更新"
+      })
+    })
   }
+
   function clearCache() {
-    chrome.storage.local.clear()
-    alert("清除缓存成功")
+    chrome.storage.local.clear(() => {
+      setAppid("")
+      setKey("")
+      showNotification({
+        title: "已清除",
+        message: "本地缓存已清空"
+      })
+    })
   }
+
   useEffect(() => {
     chrome.storage.local.get(["APP_ID", "API_KEY"], (result) => {
-      console.log("result: ", result)
       result.APP_ID && setAppid(result.APP_ID)
       result.API_KEY && setKey(result.API_KEY)
     })
   }, [])
 
   return (
-    <div className="w-[320px] flex flex-col items-center justify-center h-screen m-auto text-xl">
-      <div role="tablist" className="tabs tabs-boxed">
-        <a role="tab" className="tab tab-active">
-          百度翻译
-        </a>
-        <a role="tab" className="tab">
-          其他
-        </a>
-      </div>
-      <div className="mb-4 w-full">
-        <div className="w-[100px]">appid</div>
-        <input
-          type="text"
-          value={appid}
-          onChange={(e) => setAppid(e.target.value)}
-          placeholder="Type here"
-          className="input input-bordered w-full max-w-xs"
-        />
-      </div>
-      <div className="mb-4 w-full">
-        <div className="w-[100px]">key</div>
-        <input
-          type="text"
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          placeholder="Type here"
-          className="input input-bordered w-full max-w-xs"
-        />
-      </div>
-      <div className="mb-4">
-        <a
-          className="link link-primary text-sm"
-          href=" https://fanyi-api.baidu.com/choose">
-          百度翻译服务申请
-        </a>
-      </div>
-      <div className="flex  justify-between w-full">
-        <button className="btn btn-neutral" onClick={handleSave}>
-          保存
-        </button>
+    <div className="options-page">
+      <div className="options-shell">
+        <header className="options-header">
+          <h1 className="options-title">api服务配置</h1>
+          <p className="options-desc">
+            配置百度通用文本翻译的 APP ID 与密钥，用于弹窗翻译功能。
+          </p>
+        </header>
 
-        <button className="btn btn-neutral" onClick={() => clearCache()}>
-          清除本地缓存
-        </button>
+        <section className="options-panel">
+          <div className="options-panel-head">
+            <div>
+              <h2 className="options-panel-title">百度翻译</h2>
+              <p className="options-panel-sub">凭证仅保存在本地浏览器</p>
+            </div>
+            <a
+              className="options-link"
+              href="https://fanyi-api.baidu.com/choose"
+              target="_blank"
+              rel="noreferrer">
+              申请服务
+            </a>
+          </div>
+
+          <label className="options-field">
+            <span className="options-label">APP ID</span>
+            <input
+              type="text"
+              value={appid}
+              onChange={(e) => setAppid(e.target.value)}
+              placeholder="例如 20210111000668810"
+              className="options-input"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
+
+          <label className="options-field">
+            <span className="options-label">密钥</span>
+            <div className="options-input-row">
+              <input
+                type={showKey ? "text" : "password"}
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+                placeholder="输入百度翻译密钥"
+                className="options-input"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button
+                type="button"
+                className="options-ghost-btn"
+                onClick={() => setShowKey((v) => !v)}>
+                {showKey ? "隐藏" : "显示"}
+              </button>
+            </div>
+          </label>
+
+          <div className="options-actions">
+            <button
+              type="button"
+              className="options-btn options-btn-primary"
+              onClick={handleSave}
+              disabled={saving}>
+              {saving ? "保存中…" : "保存配置"}
+            </button>
+            <button
+              type="button"
+              className="options-btn options-btn-secondary"
+              onClick={clearCache}>
+              清除缓存
+            </button>
+          </div>
+        </section>
+
+        <p className="options-footnote">
+          修改后无需重启扩展，保存即可在弹窗中使用。
+        </p>
       </div>
     </div>
   )

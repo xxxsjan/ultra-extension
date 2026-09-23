@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react"
-
 function Footer(props) {
   return (
     <div className="popup-footer">
-      <span>© 2024&nbsp;</span>
+      <span>© {new Date().getFullYear()}&nbsp;</span>
       <a href="https://github.com/xxxsjan " target="_blank">
         xxxsjan
       </a>

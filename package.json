@@ -42,7 +42,10 @@
       "notifications",
       "tabs",
       "cookies",
-      "storage"
+      "storage",
+      "scripting",
+      "declarativeNetRequest",
+      "declarativeNetRequestWithHostAccess"
     ]
   }
 }

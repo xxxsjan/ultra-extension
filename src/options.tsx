@@ -29,12 +29,12 @@ function IndexOptions() {
   }
 
   function clearCache() {
-    chrome.storage.local.clear(() => {
+    chrome.storage.local.remove(["APP_ID", "API_KEY"], () => {
       setAppid("")
       setKey("")
       showNotification({
         title: "已清除",
-        message: "本地缓存已清空"
+        message: "翻译配置已清空"
       })
     })
   }
@@ -50,9 +50,9 @@ function IndexOptions() {
     <div className="options-page">
       <div className="options-shell">
         <header className="options-header">
-          <h1 className="options-title">api服务配置</h1>
+          <h1 className="options-title">服务配置</h1>
           <p className="options-desc">
-            配置百度通用文本翻译的 APP ID 与密钥，用于弹窗翻译功能。
+            配置百度翻译 APP ID 与密钥。抖音直播弹幕请在直播间页面面板中设置。
           </p>
         </header>
 
@@ -117,13 +117,13 @@ function IndexOptions() {
               type="button"
               className="options-btn options-btn-secondary"
               onClick={clearCache}>
-              清除缓存
+              清除翻译配置
             </button>
           </div>
         </section>
 
         <p className="options-footnote">
-          修改后无需重启扩展，保存即可在弹窗中使用。
+          修改后无需重启扩展，保存即可在弹窗翻译中使用。
         </p>
       </div>
     </div>

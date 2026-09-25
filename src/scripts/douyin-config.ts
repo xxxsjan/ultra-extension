@@ -17,6 +17,34 @@ export const DOUYIN_DEFAULTS = {
   INTERVAL: 10
 }
 
+/**
+ * 是否为抖音「直播间」地址（面板与省流只在这里生效）。
+ * 支持：
+ * - https://live.douyin.com/{房间号}
+ * - https://www.douyin.com/live/{房间号}
+ * - https://www.douyin.com/root/live/{房间号}
+ * - https://www.douyin.com/.../live/{房间号}
+ */
+export function isDouyinLiveRoom(
+  loc: Pick<Location, "hostname" | "pathname"> = location
+) {
+  const host = loc.hostname.toLowerCase()
+  const path = loc.pathname
+
+  // live.douyin.com/123456 （需带房间路径，首页不算）
+  if (host === "live.douyin.com" || host.endsWith(".live.douyin.com")) {
+    const seg = path.split("/").filter(Boolean)[0]
+    return Boolean(seg) && /^[\w-]+$/i.test(seg)
+  }
+
+  // www.douyin.com/.../live/{id} ，必须是路径段 /live/xxx
+  if (host === "www.douyin.com" || host === "douyin.com") {
+    return /\/live\/[^/?#]+/i.test(path)
+  }
+
+  return false
+}
+
 export type DouyinDanmakuConfig = {
   text: string
   /** 发送间隔（秒） */

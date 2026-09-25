@@ -5,6 +5,7 @@ import {
   DOUYIN_KEYS,
   SAVE_DATA_PENDING_KEY,
   getDouyinConfig,
+  isDouyinLiveRoom,
   type DouyinDanmakuConfig
 } from "~scripts/douyin-config"
 
@@ -23,15 +24,9 @@ let saveDataOn = false
 let bootedForHref = ""
 let saveDataPending = false
 
-
+/** 仅直播间展示面板 / 生效功能 */
 function isLivePage() {
-  const href = location.href
-  const path = location.pathname
-  return (
-    /\/live(\/|$)/.test(path) ||
-    /(^|\.)live\.douyin\.com$/i.test(location.hostname) ||
-    /douyin\.com\/.*live/i.test(href)
-  )
+  return isDouyinLiveRoom()
 }
 
 function storageKeys() {
@@ -677,11 +672,21 @@ function syncSaveDataToggle(on: boolean) {
 function bootLivePage(opts?: { preserveSession?: boolean }) {
   if (!isLivePage()) {
     stopAutoSendQuiet()
-    // 离开直播间时不要清 DNR：省流记忆为开时，规则常驻，下次进页前就能拦
+    // 离开直播间：卸下面板与页面样式；网络规则临时清掉，避免影响非直播页
+    // （省流记忆仍保留，下次再进直播间会按记忆恢复）
     removeSaveStyle()
     running = false
     saveDataOn = false
     removePanel()
+    chrome.runtime.sendMessage(
+      {
+        action: "douyin-save-data-network",
+        payload: { enabled: false }
+      },
+      () => {
+        void chrome.runtime.lastError
+      }
+    )
     bootedForHref = location.href
     return
   }

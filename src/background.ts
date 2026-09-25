@@ -115,15 +115,13 @@ async function syncSaveDataFromStorage() {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  syncSaveDataFromStorage().catch(console.error)
+  // 安装/更新后先清规则，等直播间页按记忆再挂，避免误伤其它抖音页
+  setSaveDataNetworkBlock(false).catch(console.error)
 })
 
 chrome.runtime.onStartup.addListener(() => {
-  syncSaveDataFromStorage().catch(console.error)
+  setSaveDataNetworkBlock(false).catch(console.error)
 })
-
-// service worker 醒来时也同步一次
-syncSaveDataFromStorage().catch(console.error)
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("request.action: ", request.action)
@@ -133,6 +131,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then((data) => sendResponse(data))
       .catch((err) =>
         sendResponse(err || { error_code: "UNKNOWN", error_msg: "翻译失败" })
+      )
+    return true
+  }
+
+  // 只改网络规则，不改记忆（离开直播间时临时清规则用）
+  if (request.action === "douyin-save-data-network") {
+    const enabled = Boolean(request.payload?.enabled)
+    setSaveDataNetworkBlock(enabled)
+      .then(() => sendResponse({ ok: true, enabled }))
+      .catch((err) =>
+        sendResponse({
+          ok: false,
+          error_msg: err?.message || "网络规则更新失败"
+        })
       )
     return true
   }

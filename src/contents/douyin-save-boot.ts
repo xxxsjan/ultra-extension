@@ -1,25 +1,19 @@
 import type { PlasmoCSConfig } from "plasmo"
 
-import { DOUYIN_KEYS, SAVE_DATA_PENDING_KEY } from "~scripts/douyin-config"
+import {
+  DOUYIN_KEYS,
+  SAVE_DATA_PENDING_KEY,
+  isDouyinLiveRoom
+} from "~scripts/douyin-config"
 
 /**
- * document_start：
+ * document_start：仅在直播间地址生效。
  * - 省流开：尽早挂拦截规则并注入钩子
- * - 省流关：只清网络规则，不注入任何拦截脚本（页面保持原样）
+ * - 省流关：只清网络规则，不注入任何拦截脚本
  */
 export const config: PlasmoCSConfig = {
   matches: ["https://www.douyin.com/*", "https://live.douyin.com/*"],
   run_at: "document_start"
-}
-
-function isLivePage() {
-  const href = location.href
-  const path = location.pathname
-  return (
-    /\/live(\/|$)/.test(path) ||
-    /(^|\.)live\.douyin\.com$/i.test(location.hostname) ||
-    /douyin\.com\/.*live/i.test(href)
-  )
 }
 
 function readPendingSaveData(): boolean | null {
@@ -45,7 +39,6 @@ function applySaveData(enabled: boolean) {
   chrome.runtime.sendMessage(
     {
       action: "douyin-save-data",
-      // 关：不注入；开：注入钩子
       payload: { enabled, skipInject: !enabled }
     },
     () => {
@@ -54,7 +47,8 @@ function applySaveData(enabled: boolean) {
   )
 }
 
-if (isLivePage()) {
+// 非直播间：不展示、不跑省流逻辑
+if (isDouyinLiveRoom()) {
   const pending = readPendingSaveData()
 
   if (pending !== null) {

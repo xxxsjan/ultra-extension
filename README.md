@@ -19,7 +19,7 @@
 ## 技术栈
 
 - Plasmo · React · TypeScript
-- Tailwind CSS · daisyUI
+- Tailwind CSS
 
 ## 环境要求
 

@@ -12,5 +12,5 @@ module.exports = {
       full: "100%"
     }
   },
-  plugins: [require("daisyui")]
+  plugins: []
 }

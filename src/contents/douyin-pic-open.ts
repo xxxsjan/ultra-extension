@@ -1,5 +1,7 @@
 import type { PlasmoCSConfig } from "plasmo"
 
+import { showPageToast } from "~scripts/page-toast"
+
 export const config: PlasmoCSConfig = {
   matches: ["https://www.douyin.com/*", "https://live.douyin.com/*"],
   run_at: "document_idle"
@@ -180,7 +182,12 @@ function ensureHint() {
     e.stopPropagation()
     if (!activeUrl) return
     const ok = await copyUrl(activeUrl)
-    if (ok) flashCopied()
+    if (ok) {
+      flashCopied()
+      showPageToast("已复制图片地址")
+    } else {
+      showPageToast("复制失败")
+    }
   })
 
   hint.append(openBtn, copyBtn)

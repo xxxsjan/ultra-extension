@@ -8,7 +8,8 @@ export const config: PlasmoCSConfig = {
 }
 
 const HINT_ID = "ultra-douyin-el-copy-hint"
-const TARGET_CLASS = "muiGrjCv"
+const TARGET_CLASSES = ["muiGrjCv", "CyqYy0f8"]
+const TARGET_SELECTOR = TARGET_CLASSES.map((c) => `.${c}`).join(",")
 
 let hint: HTMLDivElement | null = null
 let copyBtn: HTMLButtonElement | null = null
@@ -25,7 +26,7 @@ function findTarget(start: EventTarget | null): HTMLElement | null {
   if (node?.id === HINT_ID || node?.closest?.(`#${HINT_ID}`)) {
     return activeEl
   }
-  const hit = node?.closest?.(`.${TARGET_CLASS}`)
+  const hit = node?.closest?.(TARGET_SELECTOR)
   return hit instanceof HTMLElement ? hit : null
 }
 

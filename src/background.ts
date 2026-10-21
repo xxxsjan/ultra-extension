@@ -194,13 +194,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         error_msg: ok
           ? undefined
           : notes.join("；") ||
-            "省流操作失败，请到 chrome://extensions 重新加载扩展"
+            "直播流开关操作失败，请到 chrome://extensions 重新加载扩展"
       })
     })().catch((err) => {
       console.error(err)
       sendResponse({
         ok: false,
-        error_msg: err?.message || "省流操作失败"
+        error_msg: err?.message || "直播流开关操作失败"
       })
     })
     return true

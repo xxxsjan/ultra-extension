@@ -3,9 +3,12 @@ import type { PlasmoCSConfig } from "plasmo"
 import {
   DOUYIN_DEFAULTS,
   DOUYIN_KEYS,
+  MIN_INTERVAL,
   SAVE_DATA_PENDING_KEY,
   getDouyinConfig,
   isDouyinLiveRoom,
+  pickRandomDanmaku,
+  splitDanmakuList,
   type DouyinDanmakuConfig
 } from "~scripts/douyin-config"
 
@@ -17,12 +20,20 @@ export const config: PlasmoCSConfig = {
 const PANEL_ID = "ultra-douyin-danmaku-panel"
 
 let timer: ReturnType<typeof setInterval> | null = null
+/** 随机间隔模式下用于调度下一次发送 */
+let scheduleTimer: ReturnType<typeof setTimeout> | null = null
 let sending = false
 let panel: HTMLDivElement | null = null
 let running = false
 let saveDataOn = false
 let bootedForHref = ""
 let saveDataPending = false
+/** 悬浮窗是否处于最小化状态（默认最小化，首次挂载即为收起态） */
+let panelMinimized = true
+/** 随机发送时已用过的弹幕，避免短时间连续重复 */
+let usedDanmaku = new Set<string>()
+/** 顺序发送时的游标 */
+let sendCursor = 0
 
 /** 仅直播间展示面板 / 生效功能 */
 function isLivePage() {
@@ -34,7 +45,8 @@ function storageKeys() {
     DOUYIN_KEYS.TEXT,
     DOUYIN_KEYS.INTERVAL,
     DOUYIN_KEYS.RUNNING,
-    DOUYIN_KEYS.SAVE_DATA
+    DOUYIN_KEYS.SAVE_DATA,
+    DOUYIN_KEYS.MINIMIZED
   ]
 }
 
@@ -145,7 +157,9 @@ async function sendOnce(text: string) {
     } else {
       pressEnter(input)
     }
-    updatePanelStatus(`已发送 · ${new Date().toLocaleTimeString()}`)
+    updatePanelStatus(
+      `已发送 · ${new Date().toLocaleTimeString()} · ${text.trim().slice(0, 12)}`
+    )
   } finally {
     sending = false
   }
@@ -160,6 +174,10 @@ function stopAutoSendQuiet() {
     clearInterval(timer)
     timer = null
   }
+  if (scheduleTimer) {
+    clearTimeout(scheduleTimer)
+    scheduleTimer = null
+  }
 }
 
 function readPanelConfig(): DouyinDanmakuConfig {
@@ -169,15 +187,33 @@ function readPanelConfig(): DouyinDanmakuConfig {
   const intervalEl = panel?.querySelector(
     '[data-field="interval"]'
   ) as HTMLInputElement | null
+  const maxIntervalEl = panel?.querySelector(
+    '[data-field="max-interval"]'
+  ) as HTMLInputElement | null
+  const randomTextEl = panel?.querySelector(
+    '[data-field="random-text"]'
+  ) as HTMLInputElement | null
+  const randomIntervalEl = panel?.querySelector(
+    '[data-field="random-interval"]'
+  ) as HTMLInputElement | null
   const intervalRaw = Number(intervalEl?.value)
+  const maxIntervalRaw = Number(maxIntervalEl?.value)
+  const interval =
+    Number.isFinite(intervalRaw) && intervalRaw > 0
+      ? intervalRaw
+      : DOUYIN_DEFAULTS.INTERVAL
   return {
     text: (textEl?.value || "").trim(),
-    interval:
-      Number.isFinite(intervalRaw) && intervalRaw > 0
-        ? intervalRaw
-        : DOUYIN_DEFAULTS.INTERVAL,
+    interval,
     running,
-    saveData: saveDataOn
+    saveData: saveDataOn,
+    minimized: panelMinimized,
+    randomText: Boolean(randomTextEl?.checked),
+    randomInterval: Boolean(randomIntervalEl?.checked),
+    maxInterval:
+      Number.isFinite(maxIntervalRaw) && maxIntervalRaw > 0
+        ? Math.max(interval, maxIntervalRaw)
+        : Math.max(interval, DOUYIN_DEFAULTS.MAX_INTERVAL)
   }
 }
 
@@ -185,7 +221,13 @@ function persistPanelConfig() {
   const cfg = readPanelConfig()
   chrome.storage.local.set({
     [DOUYIN_KEYS.TEXT]: cfg.text,
-    [DOUYIN_KEYS.INTERVAL]: Math.max(3, cfg.interval),
+    [DOUYIN_KEYS.INTERVAL]: Math.max(MIN_INTERVAL, cfg.interval),
+    [DOUYIN_KEYS.RANDOM_TEXT]: cfg.randomText,
+    [DOUYIN_KEYS.RANDOM_INTERVAL]: cfg.randomInterval,
+    [DOUYIN_KEYS.MAX_INTERVAL]: Math.max(
+      MIN_INTERVAL,
+      cfg.maxInterval
+    ),
     [DOUYIN_KEYS.SAVE_DATA]: saveDataOn
   })
 }
@@ -197,10 +239,35 @@ function fillPanelFields(cfg: DouyinDanmakuConfig) {
   const intervalEl = panel?.querySelector(
     '[data-field="interval"]'
   ) as HTMLInputElement | null
+  const maxIntervalEl = panel?.querySelector(
+    '[data-field="max-interval"]'
+  ) as HTMLInputElement | null
+  const randomTextEl = panel?.querySelector(
+    '[data-field="random-text"]'
+  ) as HTMLInputElement | null
+  const randomIntervalEl = panel?.querySelector(
+    '[data-field="random-interval"]'
+  ) as HTMLInputElement | null
   if (textEl && textEl.value !== cfg.text) textEl.value = cfg.text
   if (intervalEl) {
     intervalEl.value = String(cfg.interval || DOUYIN_DEFAULTS.INTERVAL)
   }
+  if (maxIntervalEl) {
+    maxIntervalEl.value = String(
+      cfg.maxInterval || DOUYIN_DEFAULTS.MAX_INTERVAL
+    )
+  }
+  if (randomTextEl) randomTextEl.checked = cfg.randomText
+  if (randomIntervalEl) randomIntervalEl.checked = cfg.randomInterval
+  syncRandomIntervalVisibility(cfg.randomInterval)
+}
+
+/** 随机间隔开启时才显示「最大间隔」输入框 */
+function syncRandomIntervalVisibility(enabled: boolean) {
+  const row = panel?.querySelector(
+    ".ultra-dy-field-max-interval"
+  ) as HTMLElement | null
+  if (row) row.style.display = enabled ? "block" : "none"
 }
 
 function stopAutoSend() {
@@ -212,9 +279,66 @@ function stopAutoSend() {
   setFieldsDisabled(false)
 }
 
+/**
+ * 按当前配置挑一条要发的弹幕：
+ * - 随机发送开启：从多行弹幕里随机挑一条（尽量不重复）
+ * - 未开启：按行依次循环发送
+ */
+function pickNextDanmaku(cfg: DouyinDanmakuConfig): string | null {
+  const list = splitDanmakuList(cfg.text)
+  if (!list.length) return null
+
+  if (!cfg.randomText) {
+    // 顺序循环
+    const idx = sendCursor % list.length
+    sendCursor = (sendCursor + 1) % list.length
+    return list[idx]
+  }
+
+  const picked = pickRandomDanmaku(list, usedDanmaku)
+  // 全部发过一轮后清空记录，重新随机
+  if (usedDanmaku.size >= list.length) usedDanmaku.clear()
+  return picked
+}
+
+/** 组合运行状态描述：随机间隔 / 随机发送 */
+function formatRunStatus(cfg: DouyinDanmakuConfig): string {
+  const min = Math.max(MIN_INTERVAL, cfg.interval)
+  const max = Math.max(min, cfg.maxInterval)
+  const list = splitDanmakuList(cfg.text)
+  const count = list.length > 1 ? ` · 共 ${list.length} 条` : ""
+  const mode = cfg.randomInterval
+    ? `随机 ${min}-${max} 秒`
+    : `每 ${min} 秒`
+  return `已开启 · ${mode}${count}`
+}
+
+/** 计算下一次发送的间隔（秒） */
+function nextDelaySeconds(cfg: DouyinDanmakuConfig): number {
+  const min = Math.max(MIN_INTERVAL, cfg.interval)
+  if (!cfg.randomInterval) return min
+  const max = Math.max(min, cfg.maxInterval)
+  if (max <= min) return min
+  return min + Math.floor(Math.random() * (max - min + 1))
+}
+
+/** 调度下一次发送；随机间隔用 setTimeout 逐次重排 */
+function scheduleNextSend(cfg: DouyinDanmakuConfig) {
+  if (!running) return
+  const delay = nextDelaySeconds(cfg)
+  scheduleTimer = setTimeout(() => {
+    if (!running) return
+    const latest = readPanelConfig()
+    const text = pickNextDanmaku(latest)
+    if (text) sendOnce(text)
+    scheduleNextSend(latest)
+  }, delay * 1000)
+}
+
 function startAutoSend(cfg: DouyinDanmakuConfig) {
   stopAutoSendQuiet()
-  if (!cfg.text.trim()) {
+  const list = splitDanmakuList(cfg.text)
+  if (!list.length) {
     running = false
     chrome.storage.local.set({ [DOUYIN_KEYS.RUNNING]: false })
     updatePanelStatus("请先填写弹幕内容")
@@ -222,22 +346,41 @@ function startAutoSend(cfg: DouyinDanmakuConfig) {
     setFieldsDisabled(false)
     return
   }
-  const seconds = Math.max(3, cfg.interval)
-  const ms = seconds * 1000
+  const seconds = Math.max(MIN_INTERVAL, cfg.interval)
   running = true
+  sendCursor = 0
+  usedDanmaku.clear()
   chrome.storage.local.set({
     [DOUYIN_KEYS.RUNNING]: true,
     [DOUYIN_KEYS.TEXT]: cfg.text.trim(),
-    [DOUYIN_KEYS.INTERVAL]: seconds
+    [DOUYIN_KEYS.INTERVAL]: seconds,
+    [DOUYIN_KEYS.RANDOM_TEXT]: cfg.randomText,
+    [DOUYIN_KEYS.RANDOM_INTERVAL]: cfg.randomInterval,
+    [DOUYIN_KEYS.MAX_INTERVAL]: Math.max(seconds, cfg.maxInterval)
   })
-  updatePanelStatus(`已开启 · 每 ${seconds} 秒`)
+  updatePanelStatus(
+    cfg.randomInterval
+      ? `已开启 · 随机 ${seconds}-${Math.max(seconds, cfg.maxInterval)} 秒`
+      : `已开启 · 每 ${seconds} 秒`
+  )
   syncToggle(true)
   setFieldsDisabled(true)
-  setTimeout(() => sendOnce(cfg.text), 800)
-  timer = setInterval(() => {
-    const latest = readPanelConfig().text || cfg.text
-    sendOnce(latest)
-  }, ms)
+  setTimeout(() => {
+    const first = pickNextDanmaku(readPanelConfig())
+    if (first) sendOnce(first)
+  }, 800)
+
+  if (cfg.randomInterval) {
+    // 随机间隔：每次发完重新排下一次
+    scheduleNextSend(cfg)
+  } else {
+    const ms = seconds * 1000
+    timer = setInterval(() => {
+      const latest = readPanelConfig()
+      const text = pickNextDanmaku(latest)
+      if (text) sendOnce(text)
+    }, ms)
+  }
 }
 
 function toggleAutoSend() {
@@ -247,8 +390,12 @@ function toggleAutoSend() {
   }
   persistPanelConfig()
   const cfg = readPanelConfig()
-  if (cfg.interval < 3) {
-    updatePanelStatus("发送间隔至少 3 秒")
+  if (cfg.interval < MIN_INTERVAL) {
+    updatePanelStatus(`发送间隔至少 ${MIN_INTERVAL} 秒`)
+    return
+  }
+  if (cfg.randomInterval && cfg.maxInterval < cfg.interval) {
+    updatePanelStatus("最大间隔不能小于最小间隔")
     return
   }
   startAutoSend(cfg)
@@ -372,10 +519,11 @@ function requestSaveData(
 async function setSaveDataAndReload(enabled: boolean) {
   if (saveDataPending) return
   saveDataPending = true
-  updatePanelStatus(enabled ? "开启省流并刷新…" : "关闭省流，恢复播放…")
+  updatePanelStatus(enabled ? "关闭直播流并刷新…" : "恢复直播流，刷新…")
 
   markSaveDataPending(enabled)
   saveDataOn = enabled
+  updatePanelDot()
 
   try {
     const stored = await writeSaveDataMemory(enabled)
@@ -401,7 +549,7 @@ async function setSaveDataAndReload(enabled: boolean) {
     location.reload()
   } catch {
     saveDataPending = false
-    updatePanelStatus("请手动刷新页面以完成省流切换")
+    updatePanelStatus("请手动刷新页面以完成直播流切换")
   }
 }
 
@@ -418,10 +566,11 @@ function removePanel() {
 function styleLabel(el: HTMLElement) {
   Object.assign(el.style, {
     display: "block",
-    marginBottom: "4px",
+    marginBottom: "5px",
     fontSize: "11px",
-    opacity: "0.75",
-    fontWeight: "600"
+    opacity: "0.6",
+    fontWeight: "600",
+    letterSpacing: "0.3px"
   })
 }
 
@@ -429,13 +578,24 @@ function styleControl(el: HTMLElement) {
   Object.assign(el.style, {
     width: "100%",
     boxSizing: "border-box",
-    border: "1px solid rgba(255,255,255,0.18)",
-    borderRadius: "8px",
-    background: "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    borderRadius: "9px",
+    background: "rgba(255,255,255,0.06)",
     color: "#fff",
     fontFamily: "inherit",
     fontSize: "12px",
-    outline: "none"
+    outline: "none",
+    transition: "border-color .15s ease, background .15s ease, box-shadow .15s ease"
+  })
+  el.addEventListener("focus", () => {
+    el.style.borderColor = "rgba(46,139,138,0.85)"
+    el.style.background = "rgba(46,139,138,0.12)"
+    el.style.boxShadow = "0 0 0 3px rgba(46,139,138,0.16)"
+  })
+  el.addEventListener("blur", () => {
+    el.style.borderColor = "rgba(255,255,255,0.14)"
+    el.style.background = "rgba(255,255,255,0.06)"
+    el.style.boxShadow = "none"
   })
 }
 
@@ -444,14 +604,170 @@ function styleActionBtn(btn: HTMLButtonElement, bg: string) {
     width: "100%",
     height: "36px",
     border: "none",
-    borderRadius: "8px",
+    borderRadius: "9px",
     cursor: "pointer",
     fontWeight: "700",
     fontSize: "13px",
+    letterSpacing: "0.3px",
     background: bg,
     color: "#fff",
-    marginTop: "8px"
+    marginTop: "9px",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+    transition: "filter .15s ease, transform .08s ease, box-shadow .15s ease"
   })
+  btn.addEventListener("mouseenter", () => {
+    btn.style.filter = "brightness(1.12)"
+    btn.style.boxShadow = "0 6px 16px rgba(0,0,0,0.28)"
+  })
+  btn.addEventListener("mouseleave", () => {
+    btn.style.filter = "none"
+    btn.style.boxShadow = "0 4px 12px rgba(0,0,0,0.2)"
+  })
+  btn.addEventListener("mousedown", () => {
+    btn.style.transform = "scale(0.985)"
+  })
+  btn.addEventListener("mouseup", () => {
+    btn.style.transform = "none"
+  })
+}
+
+function styleMinimizeBtn(btn: HTMLButtonElement) {
+  Object.assign(btn.style, {
+    width: "22px",
+    height: "22px",
+    minWidth: "22px",
+    flex: "0 0 auto",
+    border: "none",
+    borderRadius: "999px",
+    cursor: "pointer",
+    background: "rgba(255,255,255,0.12)",
+    color: "#fff",
+    fontSize: "13px",
+    lineHeight: "1",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0",
+    transition: "background .15s ease, transform .15s ease"
+  })
+  btn.title = "最小化悬浮窗"
+  btn.addEventListener("mouseenter", () => {
+    btn.style.background = "rgba(255,255,255,0.24)"
+  })
+  btn.addEventListener("mouseleave", () => {
+    btn.style.background = "rgba(255,255,255,0.12)"
+  })
+}
+
+/** 收起 / 展开图标（内联 SVG，避免字体符号渲染不一致） */
+const MINIMIZE_ICON = `<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 8h9"/></svg>`
+const EXPAND_ICON = `<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5H2.5V6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg>`
+
+/** 注入一次性的面板动效样式（状态灯呼吸动画） */
+function ensurePanelStyles() {
+  const id = "ultra-douyin-panel-style"
+  if (document.getElementById(id)) return
+  const style = document.createElement("style")
+  style.id = id
+  style.textContent = `
+    @keyframes ultra-dy-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .55; transform: scale(.82); }
+    }
+  `
+  document.documentElement.appendChild(style)
+}
+
+/** 更新最小化胶囊上的状态灯：自动发送 / 省流任一开启则亮起 */
+function updatePanelDot() {
+  const dot = panel?.querySelector(".ultra-dy-dot") as HTMLElement | null
+  if (!dot) return
+  const active = running || saveDataOn
+  dot.style.background = active ? "#4ade80" : "rgba(255,255,255,0.4)"
+  dot.style.boxShadow = active
+    ? "0 0 0 3px rgba(74,222,128,0.18)"
+    : "0 0 0 3px rgba(255,255,255,0.06)"
+  dot.style.animation = active ? "ultra-dy-pulse 1.8s ease-in-out infinite" : "none"
+}
+
+/** 应用最小化 / 展开状态到面板 DOM */
+function applyMinimizedState(minimized: boolean) {
+  if (!panel) return
+  const body = panel.querySelector(".ultra-dy-body") as HTMLElement | null
+  const header = panel.querySelector(".ultra-dy-header") as HTMLElement | null
+  const label = panel.querySelector(
+    ".ultra-dy-title-text"
+  ) as HTMLElement | null
+  const subtitle = panel.querySelector(
+    ".ultra-dy-subtitle"
+  ) as HTMLElement | null
+  const btn = panel.querySelector(
+    '[data-act="minimize"]'
+  ) as HTMLButtonElement | null
+
+  if (minimized) {
+    if (body) body.style.display = "none"
+    if (label) label.textContent = "直播助手"
+    if (subtitle) subtitle.style.display = "none"
+    if (header) {
+      header.style.borderBottom = "none"
+      header.style.marginBottom = "0"
+      header.style.padding = "8px 9px 8px 14px"
+      header.style.gap = "8px"
+      header.style.background = "none"
+    }
+    panel.style.width = "auto"
+    panel.style.minWidth = ""
+    panel.style.padding = "0"
+    panel.style.borderRadius = "999px"
+    panel.style.background =
+      "linear-gradient(135deg, rgba(46,139,138,0.97) 0%, rgba(61,90,128,0.97) 100%)"
+    panel.style.boxShadow =
+      "0 8px 22px rgba(0,0,0,0.32), inset 0 0 0 1px rgba(255,255,255,0.16)"
+    panel.style.setProperty("backdrop-filter", "blur(6px)")
+  } else {
+    if (body) body.style.display = "block"
+    if (label) label.textContent = "直播助手"
+    if (subtitle) subtitle.style.display = "block"
+    if (header) {
+      header.style.borderBottom = "1px solid rgba(255,255,255,0.08)"
+      header.style.marginBottom = "0"
+      header.style.padding = "12px 12px 12px 14px"
+      header.style.gap = "9px"
+      header.style.background =
+        "linear-gradient(180deg, rgba(46,139,138,0.28) 0%, rgba(46,139,138,0) 100%)"
+    }
+    panel.style.width = "260px"
+    panel.style.minWidth = ""
+    panel.style.padding = "0"
+    panel.style.borderRadius = "14px"
+    panel.style.background = "rgba(17, 26, 40, 0.97)"
+    panel.style.boxShadow =
+      "0 16px 40px rgba(0,0,0,0.42), 0 0 0 1px rgba(255,255,255,0.08)"
+    panel.style.setProperty("backdrop-filter", "")
+  }
+
+  if (btn) {
+    btn.innerHTML = minimized ? EXPAND_ICON : MINIMIZE_ICON
+    btn.title = minimized ? "展开悬浮窗" : "最小化悬浮窗"
+    btn.setAttribute("aria-label", btn.title)
+  }
+
+  updatePanelDot()
+}
+
+function setMinimized(minimized: boolean) {
+  panelMinimized = minimized
+  applyMinimizedState(minimized)
+  try {
+    chrome.storage.local.set({ [DOUYIN_KEYS.MINIMIZED]: minimized })
+  } catch {
+    // ignore
+  }
+}
+
+function toggleMinimized() {
+  setMinimized(!panelMinimized)
 }
 
 function enablePanelDrag(el: HTMLDivElement, handle: HTMLElement) {
@@ -513,49 +829,86 @@ function ensurePanel() {
   const existing = document.getElementById(PANEL_ID)
   if (existing instanceof HTMLDivElement) {
     panel = existing
+    applyMinimizedState(panelMinimized)
     return panel
   }
 
   panel = document.createElement("div")
   panel.id = PANEL_ID
   panel.innerHTML = `
-    <div class="ultra-dy-title">工具集 · 直播助手</div>
-    <div class="ultra-dy-status">待命</div>
-    <label class="ultra-dy-field">
-      <span>弹幕内容</span>
-      <textarea data-field="text" rows="3" placeholder="输入要自动发送的内容"></textarea>
-    </label>
-    <label class="ultra-dy-field">
-      <span>发送间隔（秒）</span>
-      <input data-field="interval" type="number" min="3" step="1" />
-    </label>
-    <button type="button" data-act="toggle">开启自动发送</button>
-    <button type="button" data-act="save-data">开启省流</button>
+    <div class="ultra-dy-header">
+      <span class="ultra-dy-dot" aria-hidden="true"></span>
+      <div class="ultra-dy-brand">
+        <div class="ultra-dy-title"><span class="ultra-dy-title-text">直播助手</span></div>
+        <div class="ultra-dy-subtitle">抖音直播 · 弹幕与直播流</div>
+      </div>
+      <button type="button" class="ultra-dy-minimize" data-act="minimize" aria-label="最小化悬浮窗">—</button>
+    </div>
+    <div class="ultra-dy-body">
+      <div class="ultra-dy-status">待命</div>
+      <label class="ultra-dy-field">
+        <span>弹幕内容<em class="ultra-dy-hint">每行一条，可填多条</em></span>
+        <textarea data-field="text" rows="4" placeholder="第一行弹幕&#10;第二行弹幕&#10;第三行弹幕"></textarea>
+      </label>
+      <label class="ultra-dy-check">
+        <input data-field="random-text" type="checkbox" />
+        <span>随机发送（多条中随机挑一条）</span>
+      </label>
+      <label class="ultra-dy-check">
+        <input data-field="random-interval" type="checkbox" />
+        <span>随机间隔</span>
+      </label>
+      <label class="ultra-dy-field ultra-dy-field-max-interval">
+        <span>最大间隔（秒）</span>
+        <input data-field="max-interval" type="number" min="3" step="1" />
+      </label>
+      <label class="ultra-dy-field">
+        <span>发送间隔（秒）</span>
+        <input data-field="interval" type="number" min="3" step="1" />
+      </label>
+      <button type="button" data-act="toggle">开启自动发送</button>
+      <button type="button" data-act="save-data">关闭直播流</button>
+    </div>
   `
 
   Object.assign(panel.style, {
     position: "fixed",
-    right: "20px",
+    left: "50%",
     top: "100px",
     zIndex: "2147483647",
-    width: "240px",
-    padding: "14px",
-    borderRadius: "12px",
-    background: "rgba(20, 32, 51, 0.96)",
+    width: "260px",
+    padding: "0",
+    borderRadius: "14px",
+    background: "rgba(17, 26, 40, 0.97)",
     color: "#fff",
-    fontFamily: "system-ui, sans-serif",
+    fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
     fontSize: "13px",
-    boxShadow: "0 12px 32px rgba(0,0,0,0.35)",
+    boxShadow:
+      "0 16px 40px rgba(0,0,0,0.42), 0 0 0 1px rgba(255,255,255,0.08)",
+    overflow: "hidden",
     pointerEvents: "auto"
   })
 
   const title = panel.querySelector(".ultra-dy-title") as HTMLElement
+  const minimizeBtn = panel.querySelector(
+    '[data-act="minimize"]'
+  ) as HTMLButtonElement
   const status = panel.querySelector(".ultra-dy-status") as HTMLElement
   const fields = panel.querySelectorAll(".ultra-dy-field")
   const textEl = panel.querySelector('[data-field="text"]') as HTMLTextAreaElement
   const intervalEl = panel.querySelector(
     '[data-field="interval"]'
   ) as HTMLInputElement
+  const maxIntervalEl = panel.querySelector(
+    '[data-field="max-interval"]'
+  ) as HTMLInputElement
+  const randomTextEl = panel.querySelector(
+    '[data-field="random-text"]'
+  ) as HTMLInputElement
+  const randomIntervalEl = panel.querySelector(
+    '[data-field="random-interval"]'
+  ) as HTMLInputElement
+  const checkRows = panel.querySelectorAll(".ultra-dy-check")
   const toggleBtn = panel.querySelector(
     '[data-act="toggle"]'
   ) as HTMLButtonElement
@@ -563,15 +916,65 @@ function ensurePanel() {
     '[data-act="save-data"]'
   ) as HTMLButtonElement
 
+  const header = panel.querySelector(".ultra-dy-header") as HTMLElement
+  const dot = panel.querySelector(".ultra-dy-dot") as HTMLElement
+  const brand = panel.querySelector(".ultra-dy-brand") as HTMLElement
+  const subtitle = panel.querySelector(".ultra-dy-subtitle") as HTMLElement
+  const body = panel.querySelector(".ultra-dy-body") as HTMLElement
+
+  Object.assign(header.style, {
+    display: "flex",
+    alignItems: "center",
+    gap: "9px",
+    marginBottom: "0",
+    padding: "12px 12px 12px 14px",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    background:
+      "linear-gradient(180deg, rgba(46,139,138,0.28) 0%, rgba(46,139,138,0) 100%)",
+    cursor: "move"
+  })
+  Object.assign(brand.style, {
+    flex: "1 1 auto",
+    minWidth: "0"
+  })
+  Object.assign(subtitle.style, {
+    fontSize: "10px",
+    lineHeight: "1.3",
+    opacity: "0.5",
+    marginTop: "2px",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
+  })
+  Object.assign(dot.style, {
+    width: "8px",
+    height: "8px",
+    minWidth: "8px",
+    flex: "0 0 auto",
+    borderRadius: "999px",
+    background: "rgba(255,255,255,0.4)",
+    boxShadow: "0 0 0 3px rgba(255,255,255,0.06)",
+    transition: "background .2s ease, box-shadow .2s ease"
+  })
   Object.assign(title.style, {
     fontWeight: "700",
-    marginBottom: "6px",
-    padding: "2px 0 6px",
-    borderBottom: "1px solid rgba(255,255,255,0.12)"
+    fontSize: "13px",
+    letterSpacing: "0.2px",
+    whiteSpace: "nowrap",
+    textAlign: "left"
+  })
+  styleMinimizeBtn(minimizeBtn)
+  ensurePanelStyles()
+  Object.assign(body.style, {
+    padding: "12px 14px 14px"
   })
   Object.assign(status.style, {
     opacity: "0.9",
-    marginBottom: "10px",
+    marginBottom: "12px",
+    padding: "7px 10px",
+    borderRadius: "8px",
+    background: "rgba(255,255,255,0.06)",
+    borderLeft: "2px solid rgba(46,139,138,0.7)",
     lineHeight: "1.4",
     fontSize: "12px"
   })
@@ -579,31 +982,78 @@ function ensurePanel() {
   fields.forEach((field) => {
     Object.assign((field as HTMLElement).style, {
       display: "block",
-      marginBottom: "10px"
+      marginBottom: "12px"
     })
     const span = field.querySelector("span")
     if (span) styleLabel(span)
   })
 
+  // 复选行：随机发送 / 随机间隔
+  checkRows.forEach((row) => {
+    const el = row as HTMLElement
+    Object.assign(el.style, {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      marginBottom: "8px",
+      cursor: "pointer",
+      fontSize: "12px",
+      opacity: "0.88"
+    })
+    const box = el.querySelector("input") as HTMLInputElement
+    if (box) {
+      Object.assign(box.style, {
+        width: "14px",
+        height: "14px",
+        minWidth: "14px",
+        margin: "0",
+        accentColor: "#2e8b8a",
+        cursor: "pointer"
+      })
+    }
+  })
+
+  // 标签右侧的补充说明
+  const hint = panel.querySelector(".ultra-dy-hint") as HTMLElement | null
+  if (hint) {
+    Object.assign(hint.style, {
+      float: "right",
+      fontStyle: "normal",
+      fontWeight: "400",
+      opacity: "0.55",
+      fontSize: "10px"
+    })
+  }
+
   styleControl(textEl)
   Object.assign(textEl.style, {
-    minHeight: "64px",
-    padding: "8px",
+    minHeight: "76px",
+    padding: "9px 10px",
     resize: "vertical",
-    lineHeight: "1.4"
+    lineHeight: "1.6"
   })
 
   styleControl(intervalEl)
   Object.assign(intervalEl.style, {
-    height: "34px",
-    padding: "0 8px"
+    height: "36px",
+    padding: "0 10px"
   })
   intervalEl.value = String(DOUYIN_DEFAULTS.INTERVAL)
+
+  styleControl(maxIntervalEl)
+  Object.assign(maxIntervalEl.style, {
+    height: "36px",
+    padding: "0 10px"
+  })
+  maxIntervalEl.value = String(DOUYIN_DEFAULTS.MAX_INTERVAL)
+
+  // 「最大间隔」仅在随机间隔开启时显示
+  syncRandomIntervalVisibility(Boolean(randomIntervalEl?.checked))
 
   styleActionBtn(toggleBtn, "#2e8b8a")
   styleActionBtn(saveDataBtn, "#3d5a80")
   saveDataBtn.title =
-    "开：拦截直播视频省流量；关：清掉拦截并刷新，页面恢复原样播放"
+    "开：拦截直播视频流省流量；关：清掉拦截并刷新，页面恢复原样播放"
 
   enablePanelDrag(panel, title)
 
@@ -614,7 +1064,19 @@ function ensurePanel() {
   textEl.addEventListener("blur", persistPanelConfig)
   intervalEl.addEventListener("change", persistPanelConfig)
   intervalEl.addEventListener("blur", persistPanelConfig)
+  maxIntervalEl.addEventListener("change", persistPanelConfig)
+  maxIntervalEl.addEventListener("blur", persistPanelConfig)
+  randomTextEl.addEventListener("change", persistPanelConfig)
+  randomIntervalEl.addEventListener("change", (e) => {
+    syncRandomIntervalVisibility((e.target as HTMLInputElement).checked)
+    persistPanelConfig()
+  })
 
+  minimizeBtn.addEventListener("click", (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    toggleMinimized()
+  })
   toggleBtn.addEventListener("click", (e) => {
     e.preventDefault()
     e.stopPropagation()
@@ -628,6 +1090,7 @@ function ensurePanel() {
 
   const mount = document.body || document.documentElement
   mount.appendChild(panel)
+  applyMinimizedState(panelMinimized)
   console.log("[ultra-extension] 直播助手面板已挂载", location.href)
   return panel
 }
@@ -639,8 +1102,20 @@ function setFieldsDisabled(disabled: boolean) {
   const intervalEl = panel?.querySelector(
     '[data-field="interval"]'
   ) as HTMLInputElement | null
+  const maxIntervalEl = panel?.querySelector(
+    '[data-field="max-interval"]'
+  ) as HTMLInputElement | null
+  const randomTextEl = panel?.querySelector(
+    '[data-field="random-text"]'
+  ) as HTMLInputElement | null
+  const randomIntervalEl = panel?.querySelector(
+    '[data-field="random-interval"]'
+  ) as HTMLInputElement | null
   if (textEl) textEl.disabled = disabled
   if (intervalEl) intervalEl.disabled = disabled
+  if (maxIntervalEl) maxIntervalEl.disabled = disabled
+  if (randomTextEl) randomTextEl.disabled = disabled
+  if (randomIntervalEl) randomIntervalEl.disabled = disabled
 }
 
 function updatePanelStatus(text: string) {
@@ -657,6 +1132,7 @@ function syncToggle(isRunning: boolean) {
   if (!toggleBtn) return
   toggleBtn.textContent = isRunning ? "关闭自动发送" : "开启自动发送"
   toggleBtn.style.background = isRunning ? "#a35d5d" : "#2e8b8a"
+  updatePanelDot()
 }
 
 function syncSaveDataToggle(on: boolean) {
@@ -665,8 +1141,9 @@ function syncSaveDataToggle(on: boolean) {
     '[data-act="save-data"]'
   ) as HTMLButtonElement | null
   if (!btn) return
-  btn.textContent = on ? "关闭省流" : "开启省流"
+  btn.textContent = on ? "恢复直播流" : "关闭直播流"
   btn.style.background = on ? "#a35d5d" : "#3d5a80"
+  updatePanelDot()
 }
 
 function bootLivePage(opts?: { preserveSession?: boolean }) {
@@ -698,18 +1175,22 @@ function bootLivePage(opts?: { preserveSession?: boolean }) {
     const cfg = getDouyinConfig(result)
     fillPanelFields(cfg)
 
+    // 恢复最小化状态
+    panelMinimized = cfg.minimized
+    applyMinimizedState(panelMinimized)
+
     if (opts?.preserveSession) {
       syncSaveDataToggle(saveDataOn)
       if (saveDataOn) ensureSaveStyle()
-      if (running && cfg.text.trim()) {
+      if (running && splitDanmakuList(cfg.text).length) {
         syncToggle(true)
         setFieldsDisabled(true)
-        updatePanelStatus(`已开启 · 每 ${Math.max(3, cfg.interval)} 秒`)
+        updatePanelStatus(formatRunStatus(cfg))
       } else {
         syncToggle(false)
         setFieldsDisabled(false)
         updatePanelStatus(
-          saveDataOn ? "省流已开 · 需要时再开自动发送" : "省流已关 · 正常播放中"
+          saveDataOn ? "直播流已关闭 · 需要时再开自动发送" : "直播流正常播放中"
         )
       }
       return
@@ -722,16 +1203,16 @@ function bootLivePage(opts?: { preserveSession?: boolean }) {
     if (cfg.saveData) {
       ensureSaveStyle()
       killAllMediaElements()
-      updatePanelStatus("省流已开 · 已拦截直播视频")
+      updatePanelStatus("直播流已关闭 · 仅保留弹幕")
       requestSaveData(true)
     } else {
       removeSaveStyle()
-      updatePanelStatus("省流已关 · 页面原样播放")
+      updatePanelStatus("直播流正常播放中")
       // 只清规则，绝不注入拦截钩子
       requestSaveData(false, { skipInject: true })
     }
 
-    if (cfg.running && cfg.text.trim()) {
+    if (cfg.running && splitDanmakuList(cfg.text).length) {
       startAutoSend(cfg)
     } else {
       chrome.storage.local.set({ [DOUYIN_KEYS.RUNNING]: false })

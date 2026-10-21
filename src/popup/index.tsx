@@ -17,7 +17,7 @@ const FEATURES = [
   {
     key: "live",
     label: "直播助手",
-    desc: "弹幕 / 省流",
+    desc: "弹幕 / 关直播流",
     href: "https://www.douyin.com/"
   },
   {
